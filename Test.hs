@@ -9,14 +9,14 @@ testLexer = "Lexer" ~: test $
     [ tokenise "\
       \  int a;\
     \ " ~?= [
-        TSimpleType "int", TId "a", TSemicolon
+        TId "int", TId "a", TSemicolon
       ]
     , tokenise "\
     \   void *a;\
     \   int bla123;\
     \ " ~?= [
-        TSimpleType "void", TAst, TId "a", TSemicolon,
-        TSimpleType "int", TId "bla123", TSemicolon
+        TId "void", TAst, TId "a", TSemicolon,
+        TId "int", TId "bla123", TSemicolon
       ]
     , tokenise "\
     \   if (avar + 2 == 81) {\
@@ -37,19 +37,25 @@ testLexer = "Lexer" ~: test $
     \ " ~?= [
         TId "void", TAst, TId "foo", TParenL, TId "int", TId "a", TComma, TId "int", TAmp, TId "b", TComma, TId "int", TAmp, TId "c", TParenR,
         TBraceL,
-            TId "char", TId "c", TAssign, TSquote, TString "w", TSemicolon,
+            TId "char", TId "c", TAssign, TSQuote, TString "w", TSQuote, TSemicolon,
             TId "c", TAssign, TParenL, TId "int", TParenR, TId "a", TPercent, TParenL, TId "bool", TParenR, TNum "42", TSemicolon,
-            TReturn, TAst, TId "d",
+            TReturn, TAst, TId "d", TSemicolon,
         TBraceR
       ]
     , tokenise "\
     \   char* str1 = \"hello\"\"world!\";\
+    \ " ~?= [
+        TId "char", TAst, TId "str1", TAssign, TDQuote, TString "hello", TDQuote, TDQuote, TString "world!", TDQuote, TSemicolon
+      ]
+    , tokenise "\
     \   char *str2 = \"hi\\nthere\";\
+    \ " ~?= [
+        TId "char", TAst, TId "str2", TAssign, TDQuote, TString "hi\\nthere", TDQuote, TSemicolon
+      ]
+    , tokenise "\
     \   char* str3 = \"now\\\"quote\\\"\";\
     \ " ~?= [
-        TId "char", TAst, TId "str1", TAssign, TDQuote, TString "hello", TDQuote, TDQuote, TString "world!", TDQuote, TSemicolon,
-        TId "char", TAst, TId "str2", TAssign, TDQuote, TString "hi\nthere", TDQuote, TSemicolon,
-        TId "char", TAst, TId "str3", TAssign, TDQuote, TString "now\"quote\"", TDQuote, TSemicolon
+        TId "char", TAst, TId "str3", TAssign, TDQuote, TString "now\\\"quote\\\"", TDQuote, TSemicolon
       ]
     ]
 
