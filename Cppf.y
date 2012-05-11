@@ -1,7 +1,12 @@
 {
+{-# LANGUAGE ViewPatterns #-}
+
 module Cppf where
 
 import Data.Char
+import Data.List
+import Control.Monad
+import Control.Monad.Instances
 }
 
 %name cppf
@@ -25,7 +30,6 @@ import Data.Char
     GOTO            { TGoto }
     
     -- Types
-    SIMPLETYPE      { TSimpleType $$ }
     STORAGECLASS    { TStorageClass $$ }
     FUNCTIONSPEC    { TFunctionSpec $$ }
     CVQUALIFIER     { TCVQualifier $$ }
@@ -39,7 +43,7 @@ import Data.Char
     '}'             { TBraceR }
     '['             { TSquareL }
     ']'             { TSquareR }
-    '\''            { TSquote }
+    '\''            { TSQuote }
     '"'             { TDQuote }
 
     -- Operators
@@ -56,9 +60,9 @@ import Data.Char
     '>'             { TGt }
     '<'             { TLt }
     '.'             { TDot }
+    '='             { TAssign }
     '++'            { TPlusplus }
     '--'            { TMinusminus }
-    '='             { TAssign }
     '=='            { TEq }
     '!='            { TNeq }
     '&&'            { TAnd }
@@ -96,7 +100,6 @@ data Token = TIf
            | TReturn
            | TGoto
            
-           | TSimpleType String
            | TStorageClass String
            | TFunctionSpec String
            | TCVQualifier String
@@ -109,7 +112,7 @@ data Token = TIf
            | TBraceR
            | TSquareL
            | TSquareR
-           | TSquote
+           | TSQuote
            | TDQuote
 
            | TPlus
@@ -143,5 +146,78 @@ data Token = TIf
            | TString    String
     deriving (Show, Eq)
 
+
+-- *****
+-- LEXER
+
 tokenise [] = []
+
+tokenise (stripPrefix "if" -> Just cs)      = TIf       : tokenise cs
+tokenise (stripPrefix "else" -> Just cs)    = TElse     : tokenise cs
+tokenise (stripPrefix "switch" -> Just cs)  = TSwitch   : tokenise cs
+
+tokenise (stripPrefix "while" -> Just cs)   = TWhile    : tokenise cs
+tokenise (stripPrefix "do" -> Just cs)      = TDo       : tokenise cs
+tokenise (stripPrefix "for" -> Just cs)     = TFor      : tokenise cs
+
+tokenise (stripPrefix "break" -> Just cs)   = TBreak    : tokenise cs
+tokenise (stripPrefix "continue" -> Just cs)= TContinue : tokenise cs
+tokenise (stripPrefix "return" -> Just cs)  = TReturn   : tokenise cs
+tokenise (stripPrefix "goto" -> Just cs)    = TGoto     : tokenise cs
+
+tokenise ('=':'=':cs) = TEq     : tokenise cs
+tokenise ('!':'=':cs) = TNeq    : tokenise cs
+tokenise ('&':'&':cs) = TAnd    : tokenise cs
+tokenise ('|':'|':cs) = TOr     : tokenise cs
+tokenise ('<':'<':cs) = TShiftL : tokenise cs
+tokenise ('>':'>':cs) = TShiftR : tokenise cs
+tokenise ('>':'=':cs) = TGte    : tokenise cs
+tokenise ('<':'=':cs) = TLte    : tokenise cs
+tokenise ('-':'>':cs) = TArrow  : tokenise cs
+
+tokenise (';':cs) = TSemicolon  : tokenise cs
+tokenise (',':cs) = TComma      : tokenise cs
+tokenise ('(':cs) = TParenL     : tokenise cs
+tokenise (')':cs) = TParenR     : tokenise cs
+tokenise ('{':cs) = TBraceL     : tokenise cs
+tokenise ('}':cs) = TBraceR     : tokenise cs
+tokenise ('[':cs) = TSquareL    : tokenise cs
+tokenise (']':cs) = TSquareR    : tokenise cs
+
+tokenise ('+':cs) = TPlus       : tokenise cs
+tokenise ('-':cs) = TMinus      : tokenise cs
+tokenise ('*':cs) = TAst        : tokenise cs
+tokenise ('/':cs) = TSlash      : tokenise cs
+tokenise ('%':cs) = TPercent    : tokenise cs
+tokenise ('&':cs) = TAmp        : tokenise cs
+tokenise ('|':cs) = TBar        : tokenise cs
+tokenise ('^':cs) = TCirc       : tokenise cs
+tokenise ('!':cs) = TExclam     : tokenise cs
+tokenise ('~':cs) = TTilde      : tokenise cs
+tokenise ('>':cs) = TGt         : tokenise cs
+tokenise ('<':cs) = TLt         : tokenise cs
+tokenise ('.':cs) = TDot        : tokenise cs
+tokenise ('=':cs) = TAssign     : tokenise cs
+
+tokenise ('\'':cs) = TSQuote : TString s : TSQuote : tokenise rest
+    where (s, rest) = readString "'" cs
+tokenise ('"':cs) = TDQuote  : TString s : TDQuote : tokenise rest
+    where (s, rest) = readString "\"" cs
+
+tokenise l@(c:cs)
+    | isSpace c = tokenise cs
+    | isDigit c = readNum l
+    | isAlpha c = readId l
+    | otherwise = error $ "Unexpected '" ++ (c : "'")
+ where
+    readNum l = TNum n : tokenise rest where
+        (n, rest) = span (liftM2 (||) (=='.') isDigit) l
+    readId l = TId i : tokenise rest where
+        (i, rest) = span isAlphaNum l
+
+readString p ('\\':c:cs) = ('\\':c:ss, rest)
+    where (ss, rest) = readString p cs
+readString p (stripPrefix p -> Just rest) = ("", rest)
+readString p (c:cs) = (c:ss, rest)
+    where (ss, rest) = readString p cs
 }
