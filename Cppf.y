@@ -94,7 +94,7 @@ Statement :: { [String] }
 
 CompoundStatement :: { [String] }
                   : '{' StatementSeq '}'    { "{" : ($2 ++ ["}"]) }
-                  | '{' '}'    { ["{}"] }
+                  | '{' '}'                 { ["{}"] }
 
 StatementSeq :: { [String] }
              : Statement StatementSeq   { $1 ++ $2 }
@@ -111,7 +111,7 @@ DeclarationSeq :: { [String] }
 
 Declaration :: { [String] }
             : BlockDeclaration      { $1 }
---            | FunctionDefinition    { [$1] }
+            | FunctionDefinition    { $1 }
 
 BlockDeclaration :: { [String] }
                  : SimpleDeclaration    { [$1] }
@@ -188,6 +188,17 @@ DirectAbstractDeclarator :: { String }
                  : '(' AbstractDeclarator ')'                                                   { "(" ++ $2 ++ ")" }
                  | DirectAbstractDeclarator '(' ParameterDeclarationClause ')' CVQualifierSeq   { $1 ++ "(" ++ $3 ++ ")" ++ " " ++ $5 }
                  | DirectAbstractDeclarator '(' ParameterDeclarationClause ')'                  { $1 ++ "(" ++ $3 ++ ")" }
+
+
+-- Function definitions
+
+FunctionDefinition :: { [String] }
+                   : MyTypeSpecifier Declarator FunctionBody   { ($1 ++ " " ++ $2) : $3 }
+
+FunctionBody :: { [String] }
+             : CompoundStatement    { $1 }
+
+
 
 {
 
