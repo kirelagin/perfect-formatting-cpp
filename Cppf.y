@@ -93,7 +93,7 @@ Statement :: { [String] }
           -- FIXME
 
 CompoundStatement :: { [String] }
-                  : '{' StatementSeq '}'    { "{" : ($2 ++ ["}"]) }
+                  : '{' StatementSeq '}'    { "{" : (indented $2 ++ ["}"]) }
                   | '{' '}'                 { ["{}"] }
 
 StatementSeq :: { [String] }
@@ -146,7 +146,7 @@ InitDeclarator :: { String }
 
 Declarator :: { String }
            : DirectDeclarator       { $1 }
-           | PtrOperator Declarator { $1 ++ $2 }
+           | PtrOperator Declarator { $1 ++ (if $1 == "*" then "" else " ") ++ $2 }
 
 DirectDeclarator :: { String }
                  : ID                                                                   { $1 }
@@ -157,7 +157,7 @@ DirectDeclarator :: { String }
 PtrOperator :: { String }
             : '&'                   { "&" }
             | '*'                   { "*" }
-            | '*' CVQualifierSeq    { "*" ++ $2 ++ " " }
+            | '*' CVQualifierSeq    { "*" ++ $2 }
 
 CVQualifierSeq :: { String }
                : CVQUALIFIER CVQualifierSeq { $1 ++ " " ++ $2 }
@@ -181,7 +181,7 @@ ParameterDeclaration :: { String }
 
 AbstractDeclarator :: { String }
            : DirectAbstractDeclarator       { $1 }
-           | PtrOperator AbstractDeclarator { $1 ++ $2 }
+           | PtrOperator AbstractDeclarator { $1 ++ (if $1 == "*" then " " else " ") ++ $2 }
            | PtrOperator { $1 }
 
 DirectAbstractDeclarator :: { String }
@@ -193,10 +193,7 @@ DirectAbstractDeclarator :: { String }
 -- Function definitions
 
 FunctionDefinition :: { [String] }
-                   : MyTypeSpecifier Declarator FunctionBody   { ($1 ++ " " ++ $2) : $3 }
-
-FunctionBody :: { [String] }
-             : CompoundStatement    { $1 }
+                   : MyTypeSpecifier Declarator CompoundStatement   { mergeLines [$1 ++ " " ++ $2] $3 }
 
 
 
@@ -263,6 +260,13 @@ data Token = TIf
            | TId        String
            | TString    String
     deriving (Show, Eq)
+
+
+mergeLines :: [String] -> [String] -> [String]
+mergeLines l1 l2 = (init l1) ++ ((last l1 ++ " " ++ head l2) : tail l2)
+
+indented :: [String] -> [String]
+indented = map ("    " ++)
 
 
 -- *****
