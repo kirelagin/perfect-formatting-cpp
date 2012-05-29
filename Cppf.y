@@ -270,30 +270,6 @@ data Token = TIf
 
 tokenise [] = []
 
-tokenise (stripPrefix "if" -> Just cs)      = TIf       : tokenise cs
-tokenise (stripPrefix "else" -> Just cs)    = TElse     : tokenise cs
-tokenise (stripPrefix "switch" -> Just cs)  = TSwitch   : tokenise cs
-
-tokenise (stripPrefix "while" -> Just cs)   = TWhile    : tokenise cs
-tokenise (stripPrefix "do" -> Just cs)      = TDo       : tokenise cs
-tokenise (stripPrefix "for" -> Just cs)     = TFor      : tokenise cs
-
-tokenise (stripPrefix "break" -> Just cs)   = TBreak    : tokenise cs
-tokenise (stripPrefix "continue" -> Just cs)= TContinue : tokenise cs
-tokenise (stripPrefix "return" -> Just cs)  = TReturn   : tokenise cs
-tokenise (stripPrefix "goto" -> Just cs)    = TGoto     : tokenise cs
-
-tokenise (stripPrefix "static" -> Just cs)    = TStorageClass "static" : tokenise cs
-tokenise (stripPrefix "extern" -> Just cs)    = TStorageClass "extern" : tokenise cs
-
-tokenise (stripPrefix "inline" -> Just cs)    = TFunctionSpec "inline"   : tokenise cs
-tokenise (stripPrefix "virtual" -> Just cs)   = TFunctionSpec "virtual"  : tokenise cs
-tokenise (stripPrefix "explicit" -> Just cs)  = TFunctionSpec "explicit" : tokenise cs
-
-tokenise (stripPrefix "const" -> Just cs)    = TCVQualifier "const"    : tokenise cs
-tokenise (stripPrefix "volatile" -> Just cs) = TCVQualifier "volatile" : tokenise cs
-
-
 tokenise ('/':'/':cs) = tokenise $ dropWhile (/='\n') cs
 
 tokenise ('=':'=':cs) = TEq     : tokenise cs
@@ -343,7 +319,7 @@ tokenise l@(c:cs)
  where
     readNum l = TNum n : tokenise rest where
         (n, rest) = span (liftM2 (||) (=='.') isDigit) l
-    readId l = TId i : tokenise rest where
+    readId l = idOrKwd i : tokenise rest where
         (i, rest) = span isAlphaNum l
 
 readString p ('\\':c:cs) = ('\\':c:ss, rest)
@@ -351,4 +327,30 @@ readString p ('\\':c:cs) = ('\\':c:ss, rest)
 readString p (stripPrefix p -> Just rest) = ("", rest)
 readString p (c:cs) = (c:ss, rest)
     where (ss, rest) = readString p cs
+
+idOrKwd ((== "if") -> True)      = TIf
+idOrKwd ((== "else") -> True)    = TElse
+idOrKwd ((== "switch") -> True)  = TSwitch
+
+idOrKwd ((== "while") -> True)   = TWhile
+idOrKwd ((== "do") -> True)      = TDo
+idOrKwd ((== "for") -> True)     = TFor
+
+idOrKwd ((== "break") -> True)   = TBreak
+idOrKwd ((== "continue") -> True)= TContinue
+idOrKwd ((== "return") -> True)  = TReturn
+idOrKwd ((== "goto") -> True)    = TGoto
+
+idOrKwd ((== "static") -> True)    = TStorageClass "static"
+idOrKwd ((== "extern") -> True)    = TStorageClass "extern"
+
+idOrKwd ((== "inline") -> True)    = TFunctionSpec "inline"
+idOrKwd ((== "virtual") -> True)   = TFunctionSpec "virtual"
+idOrKwd ((== "explicit") -> True)  = TFunctionSpec "explicit"
+
+idOrKwd ((== "const") -> True)    = TCVQualifier "const"
+idOrKwd ((== "volatile") -> True) = TCVQualifier "volatile"
+
+idOrKwd other = TId other
+
 }
