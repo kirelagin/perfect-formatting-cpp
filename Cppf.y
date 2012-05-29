@@ -78,6 +78,7 @@ import Control.Monad.Instances
     -- Literals
     NUM             { TNum $$ }
     ID              { TId $$ }
+    TYPEID          { TTypeId $$ }
     STRING          { TString $$ }
 
 %%
@@ -201,7 +202,14 @@ Expression :: { String }
 Statement :: { [String] }
           : DeclarationStatement    { $1 }
           | CompoundStatement       { $1 }
-          -- FIXME
+          | ExpressionStatement     { $1 }
+          | SelectionStatement      { $1 }
+--          | IterationStatement      { $1 }
+          | JumpStatement           { $1 }
+
+ExpressionStatement :: { [String] }
+                    : Expression ';'    { [$1 ++ ";"] }
+                    | ';'               { [";"] }
 
 CompoundStatement :: { [String] }
                   : '{' StatementSeq '}'    { "{" : (indented $2 ++ ["}"]) }
@@ -210,6 +218,20 @@ CompoundStatement :: { [String] }
 StatementSeq :: { [String] }
              : Statement StatementSeq   { $1 ++ $2 }
              | Statement                { $1 }
+
+SelectionStatement :: { [String] }
+                   : IF '(' Condition ')' Statement ELSE Statement  { mergeManyLines [["if (" ++ $3 ++ ")"], $5, ["else"], $7] }
+--FIXME: WTF?      | IF '(' Condition ')' Statement                 { mergeLines ["if (" ++ $3 ++ ")"] $5 }
+
+Condition :: { String }
+          : Expression                                          { $1 }
+          | MyTypeSpecifier Declarator '=' AssignmentExpression { $1 ++ $2 ++ " = " ++ $4 }
+
+JumpStatement :: { [String ] }
+              : BREAK ';'               { ["break;"] }
+              | CONTINUE ';'            { ["continue;"] }
+              | RETURN Expression ';'   { ["return " ++ $2 ++ ";"] }
+              | RETURN ';'              { ["return;"] }
 
 DeclarationStatement :: { [String] }
                      : BlockDeclaration { $1 }
@@ -245,7 +267,7 @@ DeclSpecifier :: { String }
               | CVQUALIFIER     { $1 }
 
 TypeSpecifier :: { String }
-              : ID  { $1 }
+              : TYPEID  { $1 }
 
 InitDeclaratorList :: { String }
                    : InitDeclarator                         { $1 }
@@ -380,12 +402,16 @@ data Token = TIf
            
            | TNum       String
            | TId        String
+           | TTypeId    String
            | TString    String
     deriving (Show, Eq)
 
 
 mergeLines :: [String] -> [String] -> [String]
 mergeLines l1 l2 = (init l1) ++ ((last l1 ++ " " ++ head l2) : tail l2)
+
+mergeManyLines :: [[String]] -> [String]
+mergeManyLines = foldr1 mergeLines
 
 indented :: [String] -> [String]
 indented = map ("    " ++)
@@ -442,13 +468,16 @@ tokenise ('"':cs) = TDQuote  : TString s : TDQuote : tokenise rest
 tokenise l@(c:cs)
     | isSpace c = tokenise cs
     | isDigit c = readNum l
-    | isAlpha c = readId l
+    | isNonDigit c = readId l
     | otherwise = error $ "Unexpected '" ++ (c : "'")
  where
     readNum l = TNum n : tokenise rest where
         (n, rest) = span (liftM2 (||) (=='.') isDigit) l
-    readId l = idOrKwd i : tokenise rest where
-        (i, rest) = span isAlphaNum l
+    readId l = idOrSmth i : tokenise rest where
+        (i, rest) = span isGoodForId l
+
+isNonDigit = liftM2 (||) isAlpha (=='_')
+isGoodForId = liftM2 (||) isAlphaNum (=='_')
 
 readString p ('\\':c:cs) = ('\\':c:ss, rest)
     where (ss, rest) = readString p cs
@@ -456,29 +485,30 @@ readString p (stripPrefix p -> Just rest) = ("", rest)
 readString p (c:cs) = (c:ss, rest)
     where (ss, rest) = readString p cs
 
-idOrKwd ((== "if") -> True)      = TIf
-idOrKwd ((== "else") -> True)    = TElse
-idOrKwd ((== "switch") -> True)  = TSwitch
+idOrSmth ((== "if") -> True)      = TIf
+idOrSmth ((== "else") -> True)    = TElse
+idOrSmth ((== "switch") -> True)  = TSwitch
 
-idOrKwd ((== "while") -> True)   = TWhile
-idOrKwd ((== "do") -> True)      = TDo
-idOrKwd ((== "for") -> True)     = TFor
+idOrSmth ((== "while") -> True)   = TWhile
+idOrSmth ((== "do") -> True)      = TDo
+idOrSmth ((== "for") -> True)     = TFor
 
-idOrKwd ((== "break") -> True)   = TBreak
-idOrKwd ((== "continue") -> True)= TContinue
-idOrKwd ((== "return") -> True)  = TReturn
-idOrKwd ((== "goto") -> True)    = TGoto
+idOrSmth ((== "break") -> True)   = TBreak
+idOrSmth ((== "continue") -> True)= TContinue
+idOrSmth ((== "return") -> True)  = TReturn
+idOrSmth ((== "goto") -> True)    = TGoto
 
-idOrKwd ((== "static") -> True)    = TStorageClass "static"
-idOrKwd ((== "extern") -> True)    = TStorageClass "extern"
+idOrSmth ((== "static") -> True)    = TStorageClass "static"
+idOrSmth ((== "extern") -> True)    = TStorageClass "extern"
 
-idOrKwd ((== "inline") -> True)    = TFunctionSpec "inline"
-idOrKwd ((== "virtual") -> True)   = TFunctionSpec "virtual"
-idOrKwd ((== "explicit") -> True)  = TFunctionSpec "explicit"
+idOrSmth ((== "inline") -> True)    = TFunctionSpec "inline"
+idOrSmth ((== "virtual") -> True)   = TFunctionSpec "virtual"
+idOrSmth ((== "explicit") -> True)  = TFunctionSpec "explicit"
 
-idOrKwd ((== "const") -> True)    = TCVQualifier "const"
-idOrKwd ((== "volatile") -> True) = TCVQualifier "volatile"
+idOrSmth ((== "const") -> True)    = TCVQualifier "const"
+idOrSmth ((== "volatile") -> True) = TCVQualifier "volatile"
 
-idOrKwd other = TId other
+idOrSmth other@(c:cs) = if isLower c then TTypeId other else TId other
+idOrSmth other = TId other
 
 }
