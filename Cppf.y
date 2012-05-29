@@ -61,6 +61,8 @@ import Control.Monad.Instances
     '<'             { TLt }
     '.'             { TDot }
     '='             { TAssign }
+    '?'             { TQuestion }
+    ':'             { TColon }
     '++'            { TPlusplus }
     '--'            { TMinusminus }
     '=='            { TEq }
@@ -84,6 +86,115 @@ TranslationUnit :: { String }
                 : {- empty -}    { [] }
                 | DeclarationSeq { intercalate "\n" $1 ++ "\n" }
 
+
+-- Expressions
+
+Literal :: { String }
+        : NUM               { $1 }
+        | '\'' STRING '\''  { "'" ++ $2 ++ "'" }
+        | '"' STRING '"'    { "\"" ++ $2 ++ "\"" }
+
+PrimaryExpression :: { String }
+                  : Literal             { $1 }
+                  | '(' Expression ')'  { "(" ++ $2 ++ ")" }
+                  | ID                  { $1 }
+
+PostfixExpression :: { String }
+                  : PrimaryExpression                               { $1 }
+                  | PostfixExpression '[' Expression ']'            { $1 ++ "[" ++ $3 ++ "]" }
+                  | PostfixExpression '(' ExpressionList ')'        { $1 ++ "(" ++ $3 ++ ")" }
+                  | PostfixExpression '(' ')'                       { $1 ++ "()" }
+                  | PostfixExpression '.' ID                        { $1 ++ "." ++ $3 }
+                  | PostfixExpression '->' ID                       { $1 ++ "->" ++ $3 }
+                  | PostfixExpression '++'                          { $1 ++ "++" }
+                  | PostfixExpression '--'                          { $1 ++ "--" }
+
+ExpressionList :: { String }
+               : AssignmentExpression ',' ExpressionList    { $1 ++ ", " ++ $3 }
+               | AssignmentExpression                       { $1 }
+
+UnaryExpression :: { String }
+                : PostfixExpression             { $1 }
+                | '++' CastExpression           { "++" ++ $2 }
+                | '--' CastExpression           { "--" ++ $2 }
+                | UnaryOperator CastExpression  { $1 ++ $2 }
+
+UnaryOperator :: { String }
+              : '*' { "*" }
+              | '&' { "&" }
+              | '+' { "+" }
+              | '-' { "-" }
+              | '!' { "!" }
+              | '~' { "~" }
+
+CastExpression :: { String }
+               : UnaryExpression    { $1 }
+
+PmExpression :: { String }
+             : CastExpression       { $1 }
+
+MultiplicativeExpression :: { String }
+                         : PmExpression                                 { $1 }
+                         | MultiplicativeExpression '*' PmExpression    { $1 ++ " * " ++ $3 }
+                         | MultiplicativeExpression '/' PmExpression    { $1 ++ " / " ++ $3 }
+                         | MultiplicativeExpression '%' PmExpression    { $1 ++ " % " ++ $3 }
+
+AdditiveExpression :: { String }
+                   : MultiplicativeExpression            { $1 }
+                   | AdditiveExpression '+' MultiplicativeExpression     { $1 ++ " + " ++ $3 }
+                   | AdditiveExpression '-' MultiplicativeExpression     { $1 ++ " - " ++ $3 }
+
+ShiftExpression :: { String }
+                : AdditiveExpression                        { $1 }
+                | ShiftExpression '<<' AdditiveExpression   { $1 ++ " << " ++ $3 }
+                | ShiftExpression '>>' AdditiveExpression   { $1 ++ " >> " ++ $3 }
+
+RelationalExpression :: { String }
+                     : ShiftExpression                              { $1 }
+                     | RelationalExpression '<' ShiftExpression     { $1 ++ " < " ++ $3 }
+                     | RelationalExpression '>' ShiftExpression     { $1 ++ " > " ++ $3 }
+                     | RelationalExpression '<=' ShiftExpression     { $1 ++ " <= " ++ $3 }
+                     | RelationalExpression '>=' ShiftExpression     { $1 ++ " >= " ++ $3 }
+
+EqualityExpression :: { String }
+                   : RelationalExpression                           { $1 }
+                   | EqualityExpression '==' RelationalExpression   { $1 ++ " == " ++ $3 }
+                   | EqualityExpression '!=' RelationalExpression   { $1 ++ " != " ++ $3 }
+
+AndExpression :: { String }
+              : EqualityExpression                      { $1 }
+              | AndExpression '&' EqualityExpression    { $1 ++ " & " ++ $3 }
+
+ExclusiveOrExpression :: { String }
+                      : AndExpression                           { $1 }
+                      | ExclusiveOrExpression '^' AndExpression { $1 ++ " ^ " ++ $3 }
+
+InclusiveOrExpression :: { String }
+                      : ExclusiveOrExpression                           { $1 }
+                      | InclusiveOrExpression '|' ExclusiveOrExpression { $1 ++ " | " ++ $3 }
+
+LogicalAndExpression :: { String }
+                     : InclusiveOrExpression                            { $1 }
+                     | LogicalAndExpression '&&' InclusiveOrExpression  { $1 ++ " && " ++ $3 }
+
+LogicalOrExpression :: { String }
+                    : LogicalAndExpression                          { $1 }
+                    | LogicalOrExpression '||' LogicalAndExpression { $1 ++ " || " ++ $3 }
+
+ConditionalExpression :: { String }
+                      : LogicalOrExpression                                         { $1 }
+                      | LogicalOrExpression '?' Expression ':' AssignmentExpression { $1 ++ " ? " ++ $3 ++ " : " ++ $5 }
+
+AssignmentExpression :: { String }
+                     : ConditionalExpression                                        { $1 }
+                     | LogicalOrExpression AssignmentOperator AssignmentExpression  { $1 ++ " " ++ $2 ++ " " ++ $3 }
+
+AssignmentOperator :: { String }
+                   : '='   { "=" }
+
+Expression :: { String }
+           : AssignmentExpression ',' Expression    { $1 ++ ", " ++ $3 }
+           | AssignmentExpression                   { $1 }
 
 -- Statements
 
@@ -164,7 +275,16 @@ CVQualifierSeq :: { String }
                | CVQUALIFIER { $1 }
 
 Initializer :: { String }
-            : '=' ID    {  "= " ++ $2 } -- FIXME
+            : '=' InitializerClause {  "= " ++ $2 }
+
+InitializerClause :: { String }
+                  : AssignmentExpression        { $1 }
+                  | '{' InitializerList '}'     { "{" ++ $2 ++ "}" }
+                  | '{' '}'                     { "{}" }
+
+InitializerList :: { String }
+                : InitializerClause ',' InitializerList { $1 ++ ", " ++ $3 }
+                | InitializerClause                     { $1 }
 
 ParameterDeclarationClause :: { String }
                            : {- empty -}                { "" }
@@ -243,6 +363,8 @@ data Token = TIf
            | TGt
            | TLt
            | TDot
+           | TQuestion
+           | TColon
            | TPlusplus
            | TMinusminus
            | TAssign
@@ -309,6 +431,8 @@ tokenise ('>':cs) = TGt         : tokenise cs
 tokenise ('<':cs) = TLt         : tokenise cs
 tokenise ('.':cs) = TDot        : tokenise cs
 tokenise ('=':cs) = TAssign     : tokenise cs
+tokenise ('?':cs) = TQuestion   : tokenise cs
+tokenise (':':cs) = TColon      : tokenise cs
 
 tokenise ('\'':cs) = TSQuote : TString s : TSQuote : tokenise rest
     where (s, rest) = readString "'" cs
