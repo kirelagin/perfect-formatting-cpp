@@ -220,8 +220,8 @@ StatementSeq :: { [String] }
              | Statement                { $1 }
 
 SelectionStatement :: { [String] }
-                   : IF '(' Condition ')' Statement ELSE Statement  { mergeManyLines [["if (" ++ $3 ++ ")"], $5, ["else"], $7] }
---FIXME: WTF?      | IF '(' Condition ')' Statement                 { mergeLines ["if (" ++ $3 ++ ")"] $5 }
+                   : IF '(' Condition ')' CompoundStatement ELSE CompoundStatement  { mergeManyLines [["if (" ++ $3 ++ ")"], $5, ["else"], $7] }
+                   | IF '(' Condition ')' Statement                 { mergeLines ["if (" ++ $3 ++ ")"] $5 }
 
 Condition :: { String }
           : Expression                                          { $1 }
