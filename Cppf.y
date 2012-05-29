@@ -84,6 +84,27 @@ TranslationUnit :: { String }
                 : {- empty -}    { [] }
                 | DeclarationSeq { intercalate "\n" $1 ++ "\n" }
 
+
+-- Statements
+
+Statement :: { [String] }
+          : DeclarationStatement    { $1 }
+          | CompoundStatement       { $1 }
+          -- FIXME
+
+CompoundStatement :: { [String] }
+                  : '{' StatementSeq '}'    { "{" : ($2 ++ ["}"]) }
+                  | '{' '}'    { ["{}"] }
+
+StatementSeq :: { [String] }
+             : Statement StatementSeq   { $1 ++ $2 }
+             | Statement                { $1 }
+
+DeclarationStatement :: { [String] }
+                     : BlockDeclaration { $1 }
+
+-- Declarations
+
 DeclarationSeq :: { [String] }
                : Declaration DeclarationSeq { $1 ++ $2 }
                | Declaration                { $1 }
