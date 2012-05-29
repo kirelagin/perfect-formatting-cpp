@@ -84,7 +84,7 @@ TranslationUnit : {- empty -}    { [] }
 
 {
 
-parseError _ = error "FAIL"
+parseError t = error (show t)
 
 
 data Token = TIf
@@ -164,6 +164,19 @@ tokenise (stripPrefix "break" -> Just cs)   = TBreak    : tokenise cs
 tokenise (stripPrefix "continue" -> Just cs)= TContinue : tokenise cs
 tokenise (stripPrefix "return" -> Just cs)  = TReturn   : tokenise cs
 tokenise (stripPrefix "goto" -> Just cs)    = TGoto     : tokenise cs
+
+tokenise (stripPrefix "static" -> Just cs)    = TStorageClass "static" : tokenise cs
+tokenise (stripPrefix "extern" -> Just cs)    = TStorageClass "extern" : tokenise cs
+
+tokenise (stripPrefix "inline" -> Just cs)    = TFunctionSpec "inline"   : tokenise cs
+tokenise (stripPrefix "virtual" -> Just cs)   = TFunctionSpec "virtual"  : tokenise cs
+tokenise (stripPrefix "explicit" -> Just cs)  = TFunctionSpec "explicit" : tokenise cs
+
+tokenise (stripPrefix "const" -> Just cs)    = TCVQualifier "const"    : tokenise cs
+tokenise (stripPrefix "volatile" -> Just cs) = TCVQualifier "volatile" : tokenise cs
+
+
+tokenise ('/':'/':cs) = tokenise $ dropWhile (/='\n') cs
 
 tokenise ('=':'=':cs) = TEq     : tokenise cs
 tokenise ('!':'=':cs) = TNeq    : tokenise cs
