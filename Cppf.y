@@ -270,8 +270,8 @@ DeclSpecifier :: { String }
               | TypeSpecifier   { $1 }
 
 TypeSpecifier :: { String }
-              : TYPEID  { $1 }
-              | CLASSKEY ID { $1 ++ " " ++ $2 }
+              : TYPEID          { $1 }
+              | CLASSKEY TYPEID { $1 ++ " " ++ $2 }
 
 InitDeclaratorList :: { String }
                    : InitDeclarator                         { $1 }
