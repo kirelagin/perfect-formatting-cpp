@@ -490,43 +490,44 @@ readString p (stripPrefix p -> Just rest) = ("", rest)
 readString p (c:cs) = (c:ss, rest)
     where (ss, rest) = readString p cs
 
-idOrSmth ((== "if") -> True)      = TIf
-idOrSmth ((== "else") -> True)    = TElse
-idOrSmth ((== "switch") -> True)  = TSwitch
+idOrSmth i
+  | i == "if"     = TIf
+  | i == "else"   = TElse
+  | i == "switch" = TSwitch
 
-idOrSmth ((== "while") -> True)   = TWhile
-idOrSmth ((== "do") -> True)      = TDo
-idOrSmth ((== "for") -> True)     = TFor
+  | i == "while" = TWhile
+  | i == "do"    = TDo
+  | i == "for"   = TFor
 
-idOrSmth ((== "break") -> True)   = TBreak
-idOrSmth ((== "continue") -> True)= TContinue
-idOrSmth ((== "return") -> True)  = TReturn
-idOrSmth ((== "goto") -> True)    = TGoto
+  | i == "break"    = TBreak
+  | i == "continue" = TContinue
+  | i == "return"   = TReturn
+  | i == "goto"     = TGoto
 
-idOrSmth ((== "static") -> True)    = TStorageClass "static"
-idOrSmth ((== "extern") -> True)    = TStorageClass "extern"
+  | i == "static" = TStorageClass i
+  | i == "extern" = TStorageClass i
 
-idOrSmth ((== "inline") -> True)    = TFunctionSpec "inline"
-idOrSmth ((== "virtual") -> True)   = TFunctionSpec "virtual"
-idOrSmth ((== "explicit") -> True)  = TFunctionSpec "explicit"
+  | i == "inline"   = TFunctionSpec i
+  | i == "virtual"  = TFunctionSpec i
+  | i == "explicit" = TFunctionSpec i
 
-idOrSmth ((== "const") -> True)    = TCVQualifier "const"
-idOrSmth ((== "volatile") -> True) = TCVQualifier "volatile"
+  | i == "const"    = TCVQualifier i
+  | i == "volatile" = TCVQualifier i
 
-idOrSmth ((== "class") -> True)  = TClassKey "class"
-idOrSmth ((== "struct") -> True) = TClassKey "struct"
-idOrSmth ((== "union") -> True)  = TClassKey "union"
+  | i == "class"  = TClassKey i
+  | i == "struct" = TClassKey i
+  | i == "union"  = TClassKey i
 
-idOrSmth ((== "char") -> True)  = TTypeId "char"
-idOrSmth ((== "bool") -> True)  = TTypeId "bool"
-idOrSmth ((== "short") -> True)  = TTypeId "short"
-idOrSmth ((== "int") -> True)  = TTypeId "int"
-idOrSmth ((== "long") -> True)  = TTypeId "long"
-idOrSmth ((== "signed") -> True)  = TTypeId "signed"
-idOrSmth ((== "unsigned") -> True)  = TTypeId "unsigned"
-idOrSmth ((== "float") -> True)  = TTypeId "float"
-idOrSmth ((== "double") -> True)  = TTypeId "double"
-idOrSmth ((== "void") -> True)  = TTypeId "void"
+  | i == "char"     = TTypeId i
+  | i == "bool"     = TTypeId i
+  | i == "short"    = TTypeId i
+  | i == "int"      = TTypeId i
+  | i == "long"     = TTypeId i
+  | i == "signed"   = TTypeId i
+  | i == "unsigned" = TTypeId i
+  | i == "float"    = TTypeId i
+  | i == "double"   = TTypeId i
+  | i == "void"     = TTypeId i
 
 idOrSmth i@(c:cs) | isUpper c = TTypeId i
 idOrSmth other = TId other
