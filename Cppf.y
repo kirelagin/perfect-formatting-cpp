@@ -33,6 +33,7 @@ import Control.Monad.Instances
     STORAGECLASS    { TStorageClass $$ }
     FUNCTIONSPEC    { TFunctionSpec $$ }
     CVQUALIFIER     { TCVQualifier $$ }
+    CLASSKEY        { TClassKey $$ }
     
     -- Syntax
     ';'             { TSemicolon }
@@ -254,8 +255,9 @@ SimpleDeclaration :: { String }
                   | MyTypeSpecifier ';'                                       { $1 ++ ";" }
 
 MyTypeSpecifier :: { String }
-                : DeclSpecifierSeq TypeSpecifier    { $1 ++ " " ++ $2 }
-                | TypeSpecifier                     { $1 }
+--                : DeclSpecifierSeq TypeSpecifier    { $1 ++ " " ++ $2 }
+--                | TypeSpecifier                     { $1 }
+                : DeclSpecifierSeq  { $1 }
 
 DeclSpecifierSeq :: { String }
                  : DeclSpecifier DeclSpecifierSeq   { $1 ++ " " ++ $2 }
@@ -265,9 +267,11 @@ DeclSpecifier :: { String }
               : STORAGECLASS    { $1 }
               | FUNCTIONSPEC    { $1 }
               | CVQUALIFIER     { $1 }
+              | TypeSpecifier   { $1 }
 
 TypeSpecifier :: { String }
               : TYPEID  { $1 }
+              | CLASSKEY ID { $1 ++ " " ++ $2 }
 
 InitDeclaratorList :: { String }
                    : InitDeclarator                         { $1 }
@@ -360,6 +364,7 @@ data Token = TIf
            | TStorageClass String
            | TFunctionSpec String
            | TCVQualifier String
+           | TClassKey String
            
            | TSemicolon
            | TComma
@@ -508,7 +513,22 @@ idOrSmth ((== "explicit") -> True)  = TFunctionSpec "explicit"
 idOrSmth ((== "const") -> True)    = TCVQualifier "const"
 idOrSmth ((== "volatile") -> True) = TCVQualifier "volatile"
 
-idOrSmth other@(c:cs) = if isLower c then TTypeId other else TId other
+idOrSmth ((== "class") -> True)  = TClassKey "class"
+idOrSmth ((== "struct") -> True) = TClassKey "struct"
+idOrSmth ((== "union") -> True)  = TClassKey "union"
+
+idOrSmth ((== "char") -> True)  = TTypeId "char"
+idOrSmth ((== "bool") -> True)  = TTypeId "bool"
+idOrSmth ((== "short") -> True)  = TTypeId "short"
+idOrSmth ((== "int") -> True)  = TTypeId "int"
+idOrSmth ((== "long") -> True)  = TTypeId "long"
+idOrSmth ((== "signed") -> True)  = TTypeId "signed"
+idOrSmth ((== "unsigned") -> True)  = TTypeId "unsigned"
+idOrSmth ((== "float") -> True)  = TTypeId "float"
+idOrSmth ((== "double") -> True)  = TTypeId "double"
+idOrSmth ((== "void") -> True)  = TTypeId "void"
+
+idOrSmth i@(c:cs) | isUpper c = TTypeId i
 idOrSmth other = TId other
 
 }
